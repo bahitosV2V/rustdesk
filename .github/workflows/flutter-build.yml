@@ -97,7 +97,38 @@ jobs:
         with:
           name: bridge-artifact
           path: ./
+# --- INSERT START ---
+      - name: Hardcode Host and Key
+        shell: powershell
+        run: |
+          # === CONFIGURATION ===
+          $MyIP = "172.245.42.148"  # <--- CHANGE THIS TO YOUR SERVER IP
+          $MyKey = "ZQUNLdKyinfkvjldXuicbFadavsL2FCEOko9kGQD93E="
+          # =====================
 
+          $path = "libs\hbb_common\src\config.rs"
+          
+          if (Test-Path $path) {
+            Write-Host "Found config file at $path"
+            $content = Get-Content $path
+            
+            # 1. Replace rustdesk.com with your IP
+            $content = $content -replace 'rustdesk.com', $MyIP
+            
+            # 2. Inject your Key
+            # This looks for: pub const RS_PUB_KEY: &'static str = "";
+            $content = $content -replace 'pub const RS_PUB_KEY: .*', "pub const RS_PUB_KEY: &'static str = `"$MyKey`";"
+            
+            Set-Content -Path $path -Value $content
+            Write-Host "✅ Settings hardcoded successfully!"
+            
+            # Verify changes
+            Get-Content $path | Select-String "RS_PUB_KEY"
+          } else {
+            Write-Error "❌ Could not find libs\hbb_common\src\config.rs. Make sure submodules are checked out."
+            exit 1
+          }
+      # --- INSERT END ---
       - name: Install LLVM and Clang
         uses: KyleMayes/install-llvm-action@v1
         with:
