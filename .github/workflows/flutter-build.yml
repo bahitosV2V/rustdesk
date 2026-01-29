@@ -103,7 +103,7 @@ jobs:
         run: |
           # === CONFIGURATION ===
           $MyIP = "172.245.42.148"  # <--- CHANGE THIS TO YOUR SERVER IP
-          $MyKey = "ZQUNLdKyinfkvjldXuicbFadavsL2FCEOko9kGQD93E="
+          $MyKey = "3lE3yqkcTxre1Lpru9PQv65rKcaRA4q3GzRfIQr7HlI="
           # =====================
 
           $path = "libs\hbb_common\src\config.rs"
