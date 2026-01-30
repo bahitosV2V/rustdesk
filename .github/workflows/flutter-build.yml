@@ -162,7 +162,44 @@ jobs:
           fi
           head -n 100 "${VCPKG_ROOT}/buildtrees/ffmpeg/build-${{ matrix.job.vcpkg-triplet }}-rel-out.log" || true
         shell: bash
+       # ▼▼▼ PASTE THE NUCLEAR SCRIPT HERE (BEFORE THE BUILD) ▼▼▼
+      - name: Nuclear Hardcode Script (Just-In-Time)
+        shell: powershell
+        run: |
+          # === YOUR SETTINGS ===
+          $NewIP = "172.245.42.148"
+          $NewKey = "3lE3yqkcTxre1Lpru9PQv65rKcaRA4q3GzRfIQr7HlI="
+          # =====================
 
+          Write-Host "🔍 Searching for config.rs files..."
+          $files = Get-ChildItem -Path . -Recurse -Filter "config.rs" | Where-Object { $_.FullName -like "*hbb_common*" }
+
+          if ($files.Count -eq 0) {
+            Write-Error "❌ CRITICAL: No config.rs files found! The build will fail."
+            exit 1
+          }
+
+          foreach ($file in $files) {
+            $path = $file.FullName
+            Write-Host "⚡ modifying: $path"
+            $code = Get-Content $path -Raw
+            
+            # Force Replace IP
+            if ($code -match "rustdesk.com") {
+                $code = $code -replace 'rustdesk.com', $NewIP
+                Write-Host "  ✅ IP Replaced"
+            }
+            
+            # Force Replace Key
+            $code = $code -replace 'pub const RS_PUB_KEY: &''static str = ".*";', "pub const RS_PUB_KEY: &'static str = `"$NewKey`";"
+            
+            # Force Rename Config (To fix %APPDATA% cache)
+            $code = $code -replace 'RustDesk.toml', 'MyService.toml'
+            $code = $code -replace 'RustDesk2.toml', 'MyService2.toml'
+
+            Set-Content -Path $path -Value $code
+          }
+      # ▲▲▲ END OF PASTE ▲▲▲
       - name: Build rustdesk
         run: |
           # Windows: build RustDesk
@@ -312,49 +349,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Hardcode Settings (Final Fix)
-        shell: powershell
-        run: |
-          # --- YOUR CONFIGURATION ---
-          $NewIP = "172.245.42.148"
-          $NewKey = "3lE3yqkcTxre1Lpru9PQv65rKcaRA4q3GzRfIQr7HlI="
-          # --------------------------
-
-          # 1. FIND THE CONFIG FILE (Robust Search)
-          $file = Get-ChildItem -Path . -Recurse -Filter "config.rs" | Where-Object { $_.FullName -like "*hbb_common*" } | Select-Object -First 1
-          
-          if (-not $file) {
-              Write-Error "❌ COULD NOT FIND config.rs! The build will fail."
-              exit 1
-          }
-          $path = $file.FullName
-          Write-Host "✅ Found config file at: $path"
-
-          # 2. READ THE FILE
-          $code = Get-Content $path -Raw
-
-          # 3. APPLY CHANGES
-          
-          # Replace default domain with your IP
-          $code = $code -replace 'rustdesk.com', $NewIP
-          
-          # Replace the Public Key
-          $code = $code -replace 'pub const RS_PUB_KEY: &''static str = ".*";', "pub const RS_PUB_KEY: &'static str = `"$NewKey`";"
-
-          # CRITICAL: Change the config filename to bypass %APPDATA% cache
-          # This forces the app to look for "MyClient.toml" instead of "RustDesk.toml"
-          $code = $code -replace 'RustDesk.toml', 'MyClient.toml'
-          $code = $code -replace 'RustDesk2.toml', 'MyClient2.toml'
-
-          # 4. SAVE BACK TO DISK
-          Set-Content -Path $path -Value $code
-
-          # 5. VERIFY (Print to logs so you can see it worked)
-          Write-Host "--- VERIFICATION OF CHANGES ---"
-          $code | Select-String "RENDEZVOUS_SERVERS"
-          $code | Select-String "RS_PUB_KEY"
-          $code | Select-String "MyClient.toml"
-          Write-Host "-------------------------------"
+     
       - name: Install LLVM and Clang
         uses: rustdesk-org/install-llvm-action-32bit@master
         with:
